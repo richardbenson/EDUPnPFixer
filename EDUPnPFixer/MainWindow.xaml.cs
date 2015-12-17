@@ -14,6 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace EDUPnPFixer
 {
@@ -48,6 +49,7 @@ namespace EDUPnPFixer
             {
                 if (Directory.Exists(Properties.Settings.Default.ED_INSTALL_DIR + @"Products\" + entry.Key))
                 {
+                    bool fixedVersion = false;
                     this.txtStatus.Text += "\n" + entry.Value + ": FOUND";
                     //We found it, so look for the log file and check it's contents
                     string LogFolder = Properties.Settings.Default.ED_INSTALL_DIR + @"Products\" + entry.Key + @"\Logs\";
@@ -58,12 +60,15 @@ namespace EDUPnPFixer
                         Console.WriteLine(file.Name);
                         using (StreamReader s = new StreamReader(file.FullName))
                         {
-                            while (s.Peek() >= 0)
+                            while (s.Peek() >= 0 && !fixedVersion)
                             {
                                 Match lineMatch = this.upnpLineMatcher.Match(s.ReadLine());
                                 if (lineMatch.Success)
                                 {
-                                    //We have a system line, form an event from it
+                                    //If we have a match then we don't need to keep checking this product
+                                    fixedVersion = true;
+                                    
+                                    //We have an error line
                                     //netLog.1509171920.01.log
                                     string[] fileNameParts = file.FullName.Split('.');
                                     DateTime parsedDate;
@@ -72,9 +77,58 @@ namespace EDUPnPFixer
                                     DateTime.TryParseExact(lineMatch.Groups[1].Value, "HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out parsedTime);
                                     DateTime eventDate = parsedDate.Date + parsedTime.TimeOfDay;
 
-                                    string[] positionParts = lineMatch.Groups[4].Value.Split(',');
+                                    this.txtStatus.Text += "\n" + eventDate.ToString() + " FOUND UPNP ERRORS ";
 
-                                    this.txtStatus.Text += "\n" + FOUND UPNP ERRORS";
+                                    MessageBoxResult result = MessageBox.Show("UPnP Errors found in " + entry.Value + " on " + eventDate.ToShortDateString() + " at " + eventDate.ToShortTimeString() + ".  Would you like to fix this version?", "Errors Found", MessageBoxButton.YesNo);
+
+                                    if (result == MessageBoxResult.Yes)
+                                    {
+                                        //find the appconfiglocal.xml if it exists
+                                        string localConfig = Properties.Settings.Default.ED_INSTALL_DIR + @"Products\" + entry.Key + @"\AppConfigLocal.xml";
+                                        //open it
+                                        XDocument ConfigFile;
+                                        bool bolNewFile = false;
+
+                                        //Check if there is an existing sync file, if so open it.
+                                        if (File.Exists(localConfig))
+                                        {
+                                            ConfigFile = XDocument.Load(localConfig);
+                                        }
+                                        else
+                                        {
+                                            //No existing file, so let's create a blank one to work on.
+                                            ConfigFile = new XDocument(
+                                                new XElement("AppConfig")
+                                            );
+                                            bolNewFile = true;
+                                        }
+
+                                        //amend or add port mappings
+                                        /*
+                                        <AppConfig>
+                                            <Network
+                                            Port="5100"
+                                            upnpenabled="0"
+                                            LogFile="netLog"
+                                            DatestampLog="1">
+                                            </Network>
+                                        </AppConfig>
+                                        */
+                                        if (ConfigFile.Root.Element("Network") == null)
+                                        {
+                                            
+                                            ConfigFile.Root.Add(new XElement("Network"));
+                                        }
+                                        XElement NetworkElement = ConfigFile.Root.Element("Network");
+                                        NetworkElement.SetAttributeValue("Port", "5100");
+                                        NetworkElement.SetAttributeValue("upnpenabled", "0");
+                                        if (NetworkElement.Attribute("LogFile") == null) NetworkElement.SetAttributeValue("LogFile", "netLog");
+                                        if (NetworkElement.Attribute("DatestampLog") == null) NetworkElement.SetAttributeValue("DatestampLog", "1");
+
+                                        ConfigFile.Save(localConfig);
+                                    }
+
+
 
                                 }
                             }
