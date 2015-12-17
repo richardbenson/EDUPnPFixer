@@ -32,6 +32,13 @@ namespace EDUPnPFixer
 
         public void StartUp()
         {
+            MessageBoxResult carryOn = MessageBox.Show("This program will scan your ED versions for UPnP errors and apply a file to convert to fixed port mappings.\n\nIf the file is applied, you will have to manually set up port forwarding on your router.\n\nSee www.portforward.com for help on how to set up manual port mappings.\n\nContinue?", "ED UPnP Fixer", MessageBoxButton.OKCancel);
+            if (carryOn == MessageBoxResult.Cancel)
+            {
+                Application.Current.Shutdown();
+                return;
+            }
+
             Dictionary<string, string> EDFolders = new Dictionary<string, string>();
 
             //List of the Elite SKUs
@@ -41,6 +48,7 @@ namespace EDUPnPFixer
             EDFolders.Add("FORC-FDEV-D-1002", "Elite Dangerous - Beta");
             EDFolders.Add("FORC-FDEV-D-1001", "Elite Dangerous - Premium Beta");
             EDFolders.Add("FORC-FDEV-D-1000", "Elite Dangerous - Alpha");
+            EDFolders.Add("elite-dangerous-64", "Elite Dangerous - Horizons"); //Possibly? Or is it E:D 64-bit? Folder is the same for both... great work!
 
             EDConfig.checkInstallLocation();
             this.txtStatus.Text = "Looking in: " + Properties.Settings.Default.ED_INSTALL_DIR;
@@ -126,6 +134,10 @@ namespace EDUPnPFixer
                                         if (NetworkElement.Attribute("DatestampLog") == null) NetworkElement.SetAttributeValue("DatestampLog", "1");
 
                                         ConfigFile.Save(localConfig);
+
+                                        txtStatus.Text += "\nAppConfigLocal.xml created";
+
+                                        MessageBox.Show("Local config file created. Set up port forwarding to this machine for UDP on port 5100");
                                     }
 
 
