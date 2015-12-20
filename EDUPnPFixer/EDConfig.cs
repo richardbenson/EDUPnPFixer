@@ -101,7 +101,19 @@ namespace EDUPnPFixer
                     if (dlg.ShowDialog() == CommonFileDialogResult.Ok)
                     {
                         loc = dlg.FileName + @"\";
-                        if (Directory.Exists(loc + "EDLaunch.exe")) selectedCorrectly = true;
+                        if (Directory.Exists(loc + "EDLaunch.exe"))
+                        {
+                            selectedCorrectly = true;
+                        } else
+                        {
+                            MessageBoxResult selectedResult = MessageBox.Show("ED Launcher not found, select again or cancel?", "Cannot find launcher", MessageBoxButton.OKCancel);
+
+                            if (selectedResult == MessageBoxResult.Cancel)
+                            {
+                                Application.Current.Shutdown();
+                                return;
+                            }
+                        }
                     }
                 }
             }
